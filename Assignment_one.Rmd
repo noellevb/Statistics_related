@@ -1,0 +1,138 @@
+---
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r # Assignment One input, echo= TRUE, eval = TRUE}
+
+
+library(ggplot2)
+library(rJava)
+library(xlsx)
+
+setwd("C:/Users/nvbil/Desktop/University/2017/GLM")
+data_org = read.xlsx("Leukemia_data.xls", header=TRUE, sheetIndex = 1)
+#attach(data_org)
+
+```
+
+```{r #Q1 -Plot Data, echo = TRUE, eval=TRUE}
+#Q1 - Plot Data
+
+WBC_plot = plot(data_org$stime ~ data_org$wbc,main="Fig 1:Death following diagnosis vs Initial WBC count", xlab = "log(initial WBC Count) ", ylab = "Death following Diagnosis (weeks) ",xlim=c(2, 6), ylim=c(0, 165) )
+abline(lm(data_org$stime ~ data_org$wbc) , col="red")
+
+
+```
+
+
+```{r Coverting data, echo= TRUE, eval = TRUE}
+
+
+#Separating x and y variables
+x_var<- matrix(1,17,2)
+x_var[ ,2] <- data_org$wbc
+y_var<-matrix(data_org$stime, 17, 1)
+
+```
+
+```{r IRLS, echo= TRUE, eval = TRUE}
+#Q5 IRLS by derivation
+
+expreg = function(x_var,y_var,max.iter=20 , tol=1E-6) {
+   beta = beta.last = cbind(7,-1.2) 
+   beta = matrix(beta,2,1)
+   it <- 1
+   
+   while(it <= max.iter) {
+    XT = t(x_var)
+    etamatrix = matrix(exp(x_var%*%beta),17,1)
+    wii = matrix(1,17,1)
+    W = diag(wii[,1],17,17)
+    W
+    LHS = XT%*%W%*%x_var
+    Jinv = solve(LHS)
+    z = log(etamatrix)+(y_var-etamatrix)*(1/etamatrix)
+    beta = solve(LHS)%*%XT%*%W%*%z
+    beta.last = beta
+    it = it + 1
+    }
+  list(coefficients = as.vector(beta), iterations = it -1, Jinv=Jinv)
+  }
+expreg.res = expreg(x_var,y_var)
+expreg.res
+```
+
+
+```{r #Q6 IRLS by function, echo=TRUE, eval=TRUE}
+
+res.gamma = glm(y_var ~ x_var, family = Gamma(link="log"))
+summary(res.gamma)
+
+```
+```{r Q7, echo=TRUE, eval=TRUE} 
+beta_1 = 8.4775
+beta_2 = -1.1093
+
+x_observed <- matrix(data_org$wbc,17,1)
+  
+observed_y = y_var
+expected_y = exp(beta_1 + beta_2*x_observed)
+#observed_y = log(y_var)
+#expected_y = (beta_1 + beta_2*x_observed)
+
+Exp_vs_Obs = plot(observed_y ~ expected_y, main= "Fig 2: Observed and Expected Y values",xlab = "Expected Y", ylab = "Observed Y", xlim=c(0, 200), ylim=c(0, 200))
+trend_line = abline(lm(observed_y ~ expected_y), col="red")
+line_x_equals_y = abline(0,1, col="blue")
+
+```
+
+```{r Q8, echo=TRUE, eval=TRUE }
+#x_observed <- matrix(data_org$wbc,17,1)
+#lambda = mean(data_org$wbc)
+
+#Wald = (-x_observed*lambda +1)^2 /((x_observed^2)*(lambda^2))
+#Wald
+
+LL_1 = beta_1 - 1.96*(expreg.res$Jinv[1,1])
+UL_1 = beta_1 + 1.96*(expreg.res$Jinv[1,1])
+CI_beta1 = c(LL_1, UL_1)
+names(CI_beta1) = c("Beta One Lower Limit", "Upper Limit")
+CI_beta1
+
+LL_2 = beta_2 - 1.96*(expreg.res$Jinv[2,2])
+UL_2 = beta_2 + 1.96*(expreg.res$Jinv[2,2])
+CI_beta2 = c(LL_2, UL_2)
+names(CI_beta2) = c("Beta One Lower Limit", "Upper Limit")
+CI_beta2
+
+```
+```{r Q9 - deviance of models, echo=TRUE, eval=TRUE }
+#Analysis of deviance
+#options(show.signif.stars=F)
+
+ymean = mean(data_org$stime)
+yvar = var(data_org$stime)
+summarystats= c(ymean, yvar)
+names(summarystats) =c("Mean of Y", "Var of Y")
+summarystats
+
+#Fitting empty model
+res.glm_0 = glm(data_org$stime~1, family = Gamma(link="log"))
+summary(res.glm_0)
+
+#Fitting model with time to death
+res.glm_1 = glm(data_org$stime ~ data_org$wbc ,family= Gamma(link="log"))
+summary(res.glm_1)
+
+#comparing the two models
+anova(res.glm_0, res.glm_1, test="Chisq")
+anova(res.glm_0, res.glm_1, test="F")
+
+critcalchi = qchisq(0.95, df=1)
+critcalchi
+
+
+```
