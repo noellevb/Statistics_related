@@ -281,7 +281,7 @@ tabstat maxfib treatcat maxfibtreat,stats(n mean sd median p25 p75 min max) by(t
 stcox maxfib treatcat 
 stcox maxfib treatcat ,nohr nolog 
 
-//stcox maxfib treatcat maxfibtreat basesurv(basesurv0) 
+//stcox maxfib treatcat maxfibtreat basesurv(basesurv0)Â 
 //stcurve, surv at1 
 
 // Validation
